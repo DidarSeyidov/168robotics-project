@@ -305,21 +305,26 @@ int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
 
+    // Strip --ros-args and everything after it so manual argc checks stay valid
+    // when the node is started via ros2 launch or ros2 run.
+    auto args = rclcpp::remove_ros_arguments(argc, argv);
+    // args[0] = program name; args[1] = yaml file (optional); args[2] = csv (optional)
+
     std::string yaml_file = "options.yaml";
     std::string object_info_csv_file = "";
 
-    if (argc == 2) {
-        yaml_file = argv[1];
+    if (args.size() == 2) {
+        yaml_file = args[1];
         std::cout << "yaml_file: " << yaml_file << std::endl;
-    } else if (argc == 3) {
-        yaml_file = argv[1];
+    } else if (args.size() == 3) {
+        yaml_file = args[1];
         std::cout << "yaml_file: " << yaml_file << std::endl;
-        object_info_csv_file = argv[2];
+        object_info_csv_file = args[2];
         std::cout << "object_info_csv_file: " << object_info_csv_file << std::endl;
-    } else if (argc == 1) {
+    } else if (args.size() == 1) {
         std::cout << "No yaml file provided. Using default: options.yaml" << std::endl;
     } else {
-        std::cout << "Error: too many arguments." << std::endl;
+        std::cout << "Error: unexpected number of arguments (" << args.size() - 1 << ")." << std::endl;
         return -1;
     }
 

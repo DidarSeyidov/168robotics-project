@@ -4,17 +4,15 @@ Bag location: ~/semantic_map_ws/bag/
 Key bag topics used:
   /lidar/merged/points              → depth image (via lidar_to_depth)
   /bnk/omninav_combine/out_lo       → pose      (via odom_to_pose)
-  /cam/left/camera_info             → camera intrinsics for projection
+  /cam/front/camera_info            → camera intrinsics for projection
 
 Play the bag in a separate terminal BEFORE or AFTER starting this launch:
-  ros2 bag play ~/semantic_map_ws/bag --clock --loop
+  ros2 bag play ~/semantic_map_ws/bag --clock \\
+      --qos-profile-overrides-path ~/semantic_map_ws/bag/qos_override.yaml
 
 The '--clock' flag makes the bag publish /clock so all nodes use sim time.
-
-If the TF between the lidar frame and the camera frame is not present in the bag
-(check with: ros2 bag info ~/semantic_map_ws/bag), you may need to publish a
-static transform.  Example (lidar_frame → cam_left):
-  ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 lidar_frame cam_left
+The '--qos-profile-overrides-path' fixes /tf_static durability so TF frames
+from the bag are properly received.
 """
 
 from launch import LaunchDescription
@@ -36,8 +34,8 @@ def generate_launch_description():
         'odom_topic',  default_value='/bnk/omninav_combine/out_lo',
         description='Odometry topic from the bag')
     cam_frame_arg   = DeclareLaunchArgument(
-        'camera_frame', default_value='',
-        description='Camera TF frame (leave empty to auto-detect from CameraInfo)')
+        'camera_frame', default_value='cam_front',
+        description='Camera TF frame (must exist in bag TF tree)')
     max_depth_arg   = DeclareLaunchArgument(
         'max_depth', default_value='30.0',
         description='Maximum depth (m) to project from LiDAR')
@@ -61,7 +59,7 @@ def generate_launch_description():
         name='lidar_to_depth',
         parameters=[{
             'lidar_topic':       LaunchConfiguration('lidar_topic'),
-            'camera_info_topic': '/cam/left/camera_info',
+            'camera_info_topic': '/cam/front/camera_info',
             'output_topic':      '/camera/depth_from_lidar',
             'camera_frame':      LaunchConfiguration('camera_frame'),
             'max_depth':         LaunchConfiguration('max_depth'),
