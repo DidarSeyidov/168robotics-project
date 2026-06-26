@@ -94,19 +94,25 @@ private:
         }
     }
 
+    static bool hasField(const sensor_msgs::msg::PointCloud2& cloud, const std::string& name)
+    {
+        for (const auto& f : cloud.fields)
+            if (f.name == name) return true;
+        return false;
+    }
+
     void pointCloudCallback(
         const sensor_msgs::msg::PointCloud2::ConstSharedPtr& points_msg,
         const geometry_msgs::msg::PoseStamped::ConstSharedPtr& pose_msg)
     {
         std::cout << "Received point cloud message" << std::endl;
 
+        const bool has_color = write_color_ &&
+                               hasField(*points_msg, "r") &&
+                               hasField(*points_msg, "g") &&
+                               hasField(*points_msg, "b");
+
         std::vector<Vertex> vertices;
-        sensor_msgs::PointCloud2ConstIterator<float>   iter_x(*points_msg, "x");
-        sensor_msgs::PointCloud2ConstIterator<float>   iter_y(*points_msg, "y");
-        sensor_msgs::PointCloud2ConstIterator<float>   iter_z(*points_msg, "z");
-        sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_r(*points_msg, "r");
-        sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_g(*points_msg, "g");
-        sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_b(*points_msg, "b");
 
         static geometry_msgs::msg::PoseStamped last_pose;
 
@@ -115,7 +121,7 @@ private:
         std::cout << "Step: " << count << std::endl;
 
         if (first_message_) {
-            if (write_color_) {
+            if (has_color) {
                 write_ply_header();
             } else {
                 write_ply_header_no_color();
@@ -136,7 +142,7 @@ private:
             }
             std::cout << "Writing " << vertices.size() << " vertices to the ply file" << std::endl;
             if (!vertices.empty()) {
-                if (write_color_) {
+                if (has_color) {
                     write_ply_data(vertices);
                 } else {
                     write_ply_no_color(vertices);
@@ -145,10 +151,23 @@ private:
         }
 
         full_vertices_last_frame_.clear();
-        for (; iter_x != iter_x.end();
-             ++iter_x, ++iter_y, ++iter_z, ++iter_r, ++iter_g, ++iter_b) {
-            full_vertices_last_frame_.push_back(
-                Vertex{*iter_x, *iter_y, *iter_z, *iter_r, *iter_g, *iter_b});
+        sensor_msgs::PointCloud2ConstIterator<float> iter_x(*points_msg, "x");
+        sensor_msgs::PointCloud2ConstIterator<float> iter_y(*points_msg, "y");
+        sensor_msgs::PointCloud2ConstIterator<float> iter_z(*points_msg, "z");
+        if (has_color) {
+            sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_r(*points_msg, "r");
+            sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_g(*points_msg, "g");
+            sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_b(*points_msg, "b");
+            for (; iter_x != iter_x.end();
+                 ++iter_x, ++iter_y, ++iter_z, ++iter_r, ++iter_g, ++iter_b) {
+                full_vertices_last_frame_.push_back(
+                    Vertex{*iter_x, *iter_y, *iter_z, *iter_r, *iter_g, *iter_b});
+            }
+        } else {
+            for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
+                full_vertices_last_frame_.push_back(
+                    Vertex{*iter_x, *iter_y, *iter_z, 200, 200, 200});
+            }
         }
 
         last_pose = *pose_msg;
@@ -176,6 +195,8 @@ private:
 
     bool check_if_color_need_to_save(const int& r, const int& g, const int& b)
     {
+        if (object_csv_.empty()) { return true; }
+
         static bool first = true;
         static std::vector<cv::Vec3b> ignore_color;
 

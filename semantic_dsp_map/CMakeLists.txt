@@ -64,6 +64,13 @@ install(TARGETS mapping
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(PROGRAMS
+  script/tools/odom_to_pose.py
+  script/tools/lidar_to_depth.py
+  script/tools/dummy_mask_publisher.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 install(DIRECTORY launch/
   DESTINATION share/${PROJECT_NAME}/launch
 )
